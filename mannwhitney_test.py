@@ -35,7 +35,6 @@ def mannwhitney_test_impl(
 
     direction = None
     if p_mw > alpha:
-        print(f'{experiment} {metric} 1')
         decision = 'REJECT'
         reason = f'p value > alpha: {p_mw} > {alpha}; no stochastic difference'
     elif ci_hi < 0.5:
@@ -47,7 +46,6 @@ def mannwhitney_test_impl(
         reason = f'p value < alpha: {p_mw} < {alpha}; B is stochastically greater then A'
         direction = '+'
     else:
-        print(f'{experiment} {metric} 3')
         decision = 'KEEP_RUNNING'
         reason = f'p value < alpha: {p_mw} < {alpha}; Not enough data to check statistically significant difference'
         direction = None

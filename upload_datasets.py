@@ -101,8 +101,7 @@ def transform_users(users: pd.DataFrame) -> tuple[set[str], pd.DataFrame]:
         df = pd.json_normalize(users['ampl_user_data'])
     except Exception as e:
         print(e)
-        import traceback
-        traceback.print_tb(e.__traceback__)
+
         raise e
 
     df = pd.concat([users, df], axis=1)
@@ -110,10 +109,9 @@ def transform_users(users: pd.DataFrame) -> tuple[set[str], pd.DataFrame]:
     exp_cols = {col for col in df.columns if col.startswith('exp')}
     df = df.drop(columns=['ampl_user_data']).dropna(subset=list(exp_cols), how='all')
     df['ts'] = pd.to_datetime(df['ts'])
-    shape, unique = df.shape[0], df['user_id'].nunique()
-    df = df.sort_values(['user_id', 'ts']) # (40004, 12883)
+    df = df.sort_values(['user_id', 'ts'])
+
     df = df.drop_duplicates(subset=['user_id'], keep='last')
-    ashape, aunique = df.shape[0], df['user_id'].nunique()
 
     return exp_cols, df
 
@@ -121,13 +119,21 @@ def transform_users(users: pd.DataFrame) -> tuple[set[str], pd.DataFrame]:
 def transform_payments(payments: pd.DataFrame) -> pd.DataFrame:
     payments['ts'] = pd.to_datetime(payments['ts'])
     payments = payments.sort_values(['ts', 'insert_id'])
+
+    payments_count_before_insert_id_drop = payments.shape[0]
     payments = payments.drop_duplicates(subset=['insert_id'], keep='first')
+    payments_count_after_insert_id_drop = payments.shape[0]
 
     payments['timedelta'] = payments['ts'].diff()
     filtered = payments[
         (payments['timedelta'].isna()) |
         (payments['timedelta'] >= pd.Timedelta(milliseconds=300))
     ]
+
+    if payments_count_before_insert_id_drop != payments_count_after_insert_id_drop:
+        print(f'Warning! potential data quality issue: payments dataset contains duplicated `insert_id`')
+    if payments_count_after_insert_id_drop != payments.shape[0]:
+        print(f'Warning! suspicious payments records within 300ms timespan')
 
     return filtered.drop(columns=['timedelta'])
 

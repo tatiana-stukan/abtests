@@ -58,7 +58,7 @@ def run_experiments(df: pd.DataFrame, experiments: list[str]) -> dict[str, dict[
     ]
     tasks = [
         (metric, experiment, df)
-        for metric, (experiment, df) in product(['arpu', 'messages'], tasks)
+        for metric, (experiment, df) in product(['arpu', 'messages', 'user_retention'], tasks)
     ]
 
     tasks = [
@@ -72,7 +72,7 @@ def run_experiments(df: pd.DataFrame, experiments: list[str]) -> dict[str, dict[
     ]
     results: dict[str, dict[str, list[TestResult]]] = defaultdict(lambda: defaultdict(list))
 
-    with pebble.ProcessPool(min(len(tasks), os.cpu_count())) as pool:
+    with pebble.ProcessPool(min(len(tasks), os.cpu_count() - 2)) as pool:
         map_future = pool.map(run_test, tasks)
 
         for test_result in map_future.result():
