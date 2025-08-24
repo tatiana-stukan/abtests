@@ -7,9 +7,11 @@ from typing import Any
 import pandas as pd
 import pebble
 
+from bootstrap_test import bootstrap_test_impl
 from mannwhitney_test import mannwhitney_test_impl
 from permutation_test import permutation_test_impl
 from preparation import prepare_for_experiment
+from t_test import t_test_impl
 
 
 @dataclass
@@ -28,8 +30,8 @@ class TestResult:
 
 
 tests = {
-    # 't-test': t_test,
-    # 'z_test': z_test,
+    'bootstrap_test': bootstrap_test_impl,
+    't_test': t_test_impl,
     'permutation': permutation_test_impl,
     'mannwhitney': mannwhitney_test_impl
 }
@@ -54,7 +56,7 @@ def run_test(args):
 def run_experiments(df: pd.DataFrame, experiments: list[str]) -> dict[str, dict[str, list[TestResult]]]:
     tasks = [
         (experiment, prepare_for_experiment(df, experiment))
-        for experiment in experiments[:]
+        for experiment in experiments
     ]
     tasks = [
         (metric, experiment, df)
@@ -65,7 +67,6 @@ def run_experiments(df: pd.DataFrame, experiments: list[str]) -> dict[str, dict[
         (test, metric, experiment, df)
         for test, (metric, experiment, df) in product(tests.keys(), tasks)
     ]
-
     tasks = [
         tuple(task)
         for task in tasks
@@ -110,25 +111,33 @@ def run_experiments(df: pd.DataFrame, experiments: list[str]) -> dict[str, dict[
             directions = results_df.dropna()['direction'].unique()
             accepted_tests = results_df[['test', 'metric', 'direction', 'reason']][
                 results_df['decision'] == 'ACCEPT'].to_numpy()
+            not_accepted_tests = results_df[results_df['decision'] != 'ACCEPT'].to_numpy()
             if len(directions) == 1:
                 if directions[0] == '-':
                     for test, metric, direction, reason in accepted_tests:
                         print(f'Test {test} for metric {metric} is negative\n- {reason}')
+                    for test, metric, decision, direction, reason in not_accepted_tests:
+                        print(f'Test {test} for metric {metric} is {decision}\n- {reason}')
                     print(f'Experiment `{experiment}` should be ACCEPTED, even if effect is negative')
                 else:
                     for test, metric, direction, reason in accepted_tests:
                         print(f'Test {test} for metric {metric} has positive effect\n- {reason}')
+                    for test, metric, decision, direction, reason in not_accepted_tests:
+                        print(f'Test {test} for metric {metric} is {decision}\n- {reason}')
                     print(f'Experiment `{experiment}` should be ACCEPTED')
             else:
                 print(f'Experiment `{experiment}` should be ACCEPTED, but there are negative and positive effects')
                 for test, metric, direction, reason in accepted_tests:
                     direction = 'negative' if direction == '-' else 'positive'
                     print(f'Test {test} for metric {metric} is {direction}\n- {reason}')
+                for test, metric, decision, direction, reason in not_accepted_tests:
+                    print(f'Test {test} for metric {metric} is {decision}\n- {reason}')
                 print(
                     f'Should ask someone how it will impact revenue '
                     '(example: a lot of messages, but users tend to not to spend money '
                     'which means more money is spent for servers and employees)'
                 )
+
     print('Done!')
 
     return results

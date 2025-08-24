@@ -1,6 +1,8 @@
 from functools import reduce
 
 import pandas as pd
+import pebble
+from scipy import stats
 
 
 def aggregate(column: str, metric: str):
@@ -40,7 +42,7 @@ def exclude_experiment_hopping_users(df: pd.DataFrame, experiment: str) -> pd.Da
     ]
 
     if df_count_before_filter != df.shape[0]:
-        print(f'Warning! Users change their A/B groups')
+        print(f'Warning! Users change their A/B groups in experiment: {experiment}')
 
     return df[df[experiment] >= 0]
 
@@ -67,3 +69,29 @@ def get_aggregated_a_b_groups(df: pd.DataFrame, experiment: str, metric: str) ->
     b = data[data[experiment] == 1][metric]
 
     return a, b
+
+
+def bootstrap_resample(a: object, b: object, alpha: float, n_resamples: int, func: object, rng: object) -> tuple:
+    with pebble.ProcessPool(2) as pool:
+        a = pool.schedule(stats.bootstrap, kwargs=dict(
+            data=(a,),
+            statistic=func,
+            paired=False,
+            confidence_level=1 - alpha,
+            vectorized=False,
+            n_resamples=n_resamples,
+            method='percentile',
+            rng=rng
+        ))
+        b = pool.schedule(stats.bootstrap, kwargs=dict(
+            data=(b,),
+            statistic=func,
+            paired=False,
+            confidence_level=1 - alpha,
+            vectorized=False,
+            n_resamples=n_resamples,
+            method='percentile',
+            rng=rng
+        ))
+
+    return a.result(), b.result()
